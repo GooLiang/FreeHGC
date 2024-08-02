@@ -19,7 +19,7 @@ For experiments on the large dataset AMiner, The dataset will be downloaded auto
 ## Run
 For medium-scale datasets:
 
-`python train_hgb.py --dataset ACM --method FreeHGC --reduction-rate 0.1 --pr 0.95 --gpu 0 --num-hops 3 --num-hidden 256 --lr 0.001 --dropout 0.5 --ff-layer-2 2 --ACM-keep-F`
+`python train_hgb.py --dataset ACM --method FreeHGC --reduction-rate 0.1 --pr 0.95 --gpu 0 --num-hops 3 --num-hidden 128 --lr 0.001 --dropout 0.5 --ff-layer-2 2 --ACM-keep-F`
 
 For large-scale dataset:
 
