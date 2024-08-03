@@ -1,4 +1,4 @@
-# FreeHGC: Learning-free Heterogeneous Graph Condensation via Data Selection
+# FreeHGC: Training-free Heterogeneous Graph Condensation via Data Selection
 
 ## Requirements
 
