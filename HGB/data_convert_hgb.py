@@ -206,7 +206,7 @@ def FreeHGC_convert(args):
         row1, col1, _ = PP_r.coo()
         PP = SparseTensor(row=torch.cat((row0, row1)), col=torch.cat((col0, col1)), sparse_sizes=PP.sparse_sizes())  ##设置为对称矩阵 PP.is_symmetric()
         PP = PP.coalesce()  ###这里作用是去重
-        PP = PP.set_diag()  ###对角线全部置1  ??
+        PP = PP.set_diag()  ###对角线全部置1
         total_edges = PP.nnz() + PA.nnz() + PC.nnz() + PK.nnz()
         node_type_nodes = {}
         node_type_nodes['P'] = P.shape[0]
@@ -309,7 +309,7 @@ def FreeHGC_convert(args):
         ### selected node ###
         selected_node = candidate['A']
         ### shift ###
-        shift_idx = {'A':0, 'P':1, 'T':2, 'V':3}  ######## 待确认
+        shift_idx = {'A':0, 'P':1, 'T':2, 'V':3}
         idx_shift = np.zeros(len(candidate.keys())+1, dtype=np.int32)
         idx_shift_RGCN = {}
         for i,key in enumerate(candidate.keys()):
@@ -389,7 +389,7 @@ def FreeHGC_convert(args):
         ### selected node ###
         selected_node = candidate['A']
         ### shift ###
-        shift_idx = {'M':0, 'D':1, 'A':2, 'K':3} ######## 待确认
+        shift_idx = {'M':0, 'D':1, 'A':2, 'K':3}
         idx_shift = np.zeros(len(candidate.keys())+1, dtype=np.int32)
         idx_shift_RGCN = {}
         for i,key in enumerate(candidate.keys()):
@@ -426,7 +426,7 @@ def FreeHGC_convert(args):
             new_adjs[key] = adjs[key][candidate[key[0]]][:, candidate[key[1]]]
 
         ### shift ###
-        shift_idx = {'0':0, '1':1, '2':2, '3':3, '4':4, '5':5, '6':6, '7':7}  ######## 待确认
+        shift_idx = {'0':0, '1':1, '2':2, '3':3, '4':4, '5':5, '6':6, '7':7}
         idx_shift = np.zeros(len(candidate.keys())+1, dtype=np.int32)
         idx_shift_RGCN = {}
         for i,key in enumerate(candidate.keys()):
@@ -520,8 +520,6 @@ def FreeHGC_convert(args):
             sparse.find(metrix)[0]-idx_shift_RGCN[etype_info[0]], sparse.find(metrix)[1]-idx_shift_RGCN[etype_info[1]])   #idx_shift
     torch.save(data_dic_RGCN, f'/home/public/lyx/FreeHGC/hgb/convert_condense_graph/RGCN/{args.dataset}/hops_{args.num_hops}_rrate_{args.reduction_rate}_pr_{args.pr}.pt')
     ######### for RGCN #########
-    
-    
     
     ######## for HGT ###########
     nodes_count = {}
