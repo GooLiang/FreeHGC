@@ -12,7 +12,7 @@
 
 ## Data preparation
 
-For experiments in Motivation section and on four medium-scale datasets, please download datasets `DBLP.zip`, `ACM.zip`, `IMDB.zip`, `Freebase.zip` from [the source of HGB benchmark]([https://cloud.tsinghua.edu.cn/d/a2728e52cd4943efa389/](https://drive.google.com/drive/folders/10-pf2ADCjq_kpJKFHHLHxr_czNNCJ3aX?usp=sharing)), and extract content from these compresesed files under the folder `'./data/'`.
+For experiments in Motivation section and on four medium-scale datasets, please download datasets `DBLP.zip`, `ACM.zip`, `IMDB.zip`, `Freebase.zip` from [the source of HGB benchmark](https://drive.google.com/drive/folders/10-pf2ADCjq_kpJKFHHLHxr_czNNCJ3aX?usp=sharing), and extract content from these compresesed files under the folder `'./data/'`.
 
 For experiments on the large dataset AMiner, The dataset will be downloaded automatically. If the download fails, you can view the source code of `torch_geometric.datasets` and update the url.
 
