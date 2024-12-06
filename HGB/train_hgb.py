@@ -72,19 +72,19 @@ def main(args):
     with torch.no_grad():
         #############normalization---wait to modify#########################
         if args.dataset != "Freebase":
-            prop_device = 'cuda:{}'.format(args.gpu)  ###对于dblp需要用gpu,IMDB一样可以用
+            prop_device = 'cuda:{}'.format(args.gpu)
             ###core-set###
             if args.method == 'kcenter':
                 agent = KCenter(labels, train_nid, args, device)
                 start = time.time() 
-                for tgt_node_key in node_type_nodes:  ###求所有节点类型的特征
+                for tgt_node_key in node_type_nodes:
                     features_list_dict_type[tgt_node_key], adj_dict, extra_features_buffer = hg_propagate_sparse_pyg_A(adjs, features_list_dict_cp, tgt_node_key, args.num_hops, max_length, extra_metapath, threshold_metalen, prop_device, args.enhance, prop_feats=True, echo=True) 
                 end = time.time()
                 print("time for feature propagation", end - start) 
             if args.method == 'herding':
                 agent = Herding(labels, train_nid, args, device)
                 start = time.time()
-                for tgt_node_key in node_type_nodes:  ###求所有节点类型的特征
+                for tgt_node_key in node_type_nodes:
                     features_list_dict_type[tgt_node_key], adj_dict, extra_features_buffer = hg_propagate_sparse_pyg_A(adjs, features_list_dict_cp, tgt_node_key, args.num_hops, max_length, extra_metapath, threshold_metalen, prop_device, args.enhance, prop_feats=True, echo=True)    
                 end = time.time()
                 print("time for feature propagation", end - start)
@@ -215,14 +215,12 @@ def main(args):
                                     intersection = torch.logical_and(a, b)
                                     union = torch.logical_or(a, b)
                                     tmp = torch.sum(intersection, dim=1) / torch.sum(union, dim=1)  #jaccard_score(a, b, average='samples')
-                                    tmp = torch.where(torch.isnan(tmp), torch.full_like(tmp, 1), tmp) ### debug去掉nan
+                                    tmp = torch.where(torch.isnan(tmp), torch.full_like(tmp, 1), tmp)
                                     jaccard_score_buffer_sum[key_A][key] += tmp
                             jaccard_score_buffer_sum[key_A][key] = jaccard_score_buffer_sum[key_A][key]/(len(key_B) - 1)
                 ### jaccord score ###
                 torch.save(jaccard_score_buffer_sum, f'/home/public/lyx/FreeHGC/hgb/tuning_graph/{args.dataset}/jaccard_score_{args.num_hops}.pt')
                 jaccard_score_buffer_sum = torch.load(f'/home/public/lyx/FreeHGC/hgb/tuning_graph/{args.dataset}/jaccard_score_{args.num_hops}.pt')
-
-                ### 这里考虑只有一个metapath要怎么处理, jaccard score过高->导致其他metapath的信息被吞掉->结论：jaccard的分数要低于第一项
                 
                 idx_train_nnd_metapth = defaultdict(list)
                 score_train_nnd_metapth = defaultdict(list)
@@ -256,8 +254,8 @@ def main(args):
                             # assert max_node_score == max_node_score_2
                             idx_train_nnd.append(max_receptive_node)
                             score_train_nnd.append(max_total_score.item())  ###socre_version1
-                            score_train_nnd_1.append(max_node_score.item())  ##socre_version2: more reasonable
-                            score_train_nnd_2.append(max_expand_ratio.item())  ##socre_version2: more more reasonable
+                            score_train_nnd_1.append(max_node_score.item())  ##socre_version2
+                            score_train_nnd_2.append(max_expand_ratio.item())  ##socre_version3
                             idx_avaliable_temp.remove(max_receptive_node)
                         # print("time budget:", perf_counter()-t)
                         idx_train_nnd_metapth[key][class_id] = idx_train_nnd
@@ -270,9 +268,6 @@ def main(args):
                 torch.save(score_train_nnd_ratio, f'/home/public/lyx/FreeHGC/hgb/tuning_graph/{args.dataset}/score_train_nnd_ratio_{args.num_hops}_{args.reduction_rate}_{tgt_type}.pt')
                 idx_train_nnd_metapth = torch.load(f'/home/public/lyx/FreeHGC/hgb/tuning_graph/{args.dataset}/idx_train_nnd_{args.num_hops}_{args.reduction_rate}_{tgt_type}.pt')
 
-                # ### 6.4之前
-                # score_train_nnd_metapth = torch.load(f'/home/public/lyx/FreeHGC/hgb/tuning_graph/{args.dataset}/score_train_nnd_ratio_{args.num_hops}_{args.reduction_rate}_{tgt_type}.pt')
-                # ### 6.4之前
                 score_train_nnd_metapth = torch.load(f'/home/public/lyx/FreeHGC/hgb/tuning_graph/{args.dataset}/score_train_nnd_{args.num_hops}_{args.reduction_rate}_{tgt_type}.pt')
                 # score_train_nnd_metapth = torch.load(f'/home/public/lyx/FreeHGC/hgb/tuning_graph/{args.dataset}/score_train_nnd_ratio_{args.num_hops}_{args.reduction_rate}_{tgt_type}.pt')
                 idx_selected = []
@@ -280,7 +275,7 @@ def main(args):
                 for class_id, class_budget in num_class_dict.items():
                     score_train_idx_sum[class_id] = None
                     for key,value in idx_train_nnd_metapth.items():
-                        score_train_idx = dict(zip(value[class_id], score_train_nnd_metapth[key][class_id]))  ##每个node的对应分数，可换成其他指标：current/ratio
+                        score_train_idx = dict(zip(value[class_id], score_train_nnd_metapth[key][class_id]))  ##每个node的对应分数
                         score_train_idx_sum[class_id] = dict(Counter(score_train_idx_sum[class_id]) + Counter(score_train_idx)) ## 对每个class_id的所有meta的结果score_train_idx_sum相加。之后求topk
                     # score_train_idx = torch.argsort(torch.tensor(list(score_train_idx_sum[class_id].values())), descending=True)
                     _, score_train_idx = torch.topk(torch.tensor(list(score_train_idx_sum[class_id].values())), class_budget)
@@ -309,17 +304,14 @@ def main(args):
                     ppr[key_A] = {}
                     ppr_sum[key_A] = 0
                     for key in key_B:
-                        ppr[key_A][key]= calc_ppr(adj_dict[key], key, args.pr, device)  #[score_train_idx]待验证
-                        ppr_sum[key_A] += ppr[key_A][key][idx_selected] ##V1: 不同metapath直接相加，这里可以考虑优化
-                        # ppr_sum[key_A] += ppr[key_A][key] ##V2(6.5): 直接这么做acc很差
-                        # ppr[key_A][key] = None
+                        ppr[key_A][key]= calc_ppr(adj_dict[key], key, args.pr, device)  
+                        ppr_sum[key_A] += ppr[key_A][key][idx_selected]
                     ppr_sum[key_A] = torch.sum(ppr_sum[key_A], dim = 0)
                 torch.save(ppr_sum, f'/home/public/lyx/FreeHGC/hgb/tuning_graph/{args.dataset}/ppr_sum_{args.num_hops}_{args.reduction_rate}_pr_{args.pr}.pt')
                 ppr_sum = torch.load(f'/home/public/lyx/FreeHGC/hgb/tuning_graph/{args.dataset}/ppr_sum_{args.num_hops}_{args.reduction_rate}_pr_{args.pr}.pt')
                 
                 candidate = {}
                 candidate[tgt_type] = idx_selected
-
 
                 for key, value in ppr_sum.items():
                     reduce_nodes = int(real_reduction_rate * node_type_nodes[key])  #args.reduction_rate
@@ -478,13 +470,7 @@ def main(args):
                             new_index[key_A[1]][key] = i
                             edge_count[key_A[1]][i] = len(value)
                             features_new[key_A[1]].append(torch.sum(features_list_dict_cp[key_A[1]][value], dim = 0)/len(value))   ### /长度是V1版本
-                            
-                            # tmp = itemgetter(*value)(result_dict_1)
-                            # count = sum(isinstance(item, list) for item in tmp)
-                            # if count > 1:
-                            #     new_index_1[key_A[1]][i] = list(set([item for sublist in tmp for item in sublist]))
-                            # else:
-                            #     new_index_1[key_A[1]][i] = list(set(tmp))
+
                             i = i + 1
                             pool.append(value)
                     row = list(new_index[key_A[1]].keys())
@@ -493,14 +479,6 @@ def main(args):
                     # torch.save(col, f'/home/public/lyx/FreeHGC/hgb/condense_graph/{args.dataset}/hops_{args.num_hops}_rrate_{args.reduction_rate}_back_new_type_col_{key_A}.pt')
                     new_adjs[key_A] = SparseTensor(row=torch.LongTensor(row), col=torch.LongTensor(col), sparse_sizes=(max(row)+1, i))
                     new_adjs[key_A[::-1]] = SparseTensor(row=torch.LongTensor(col), col=torch.LongTensor(row), sparse_sizes=(i, max(row)+1))
-
-                    # row = list(new_index_1[key_A[1]].keys())
-                    # col = list(new_index_1[key_A[1]].values())
-                    # length = [len(value) for value in col]
-                    # row = [[value]*length[i] for i, value in enumerate(row)]
-                    # row = [item for sublist in row for item in sublist]
-                    # col = [item for sublist in col for item in sublist]
-                    # new_adjs[key_A[::-1]] = SparseTensor(row=torch.LongTensor(row), col=torch.LongTensor(col), sparse_sizes=(max(row)+1, max(col)+1))
                     
                     features_list_dict_cp[key_A[1]] = torch.stack(features_new[key_A[1]])
             torch.save(features_list_dict_cp, f'/home/public/lyx/FreeHGC/hgb/condense_graph/{args.dataset}/hops_{args.num_hops}_rrate_{args.reduction_rate}_back_new_type_feat.pt')
@@ -524,7 +502,7 @@ def main(args):
                 real_reduction_rate = sum_nodes/sum(node_type_nodes.values())
                 print("real_reduction_rate: ", real_reduction_rate)
                 
-            # train_nid = np.arange(len(idx_selected))
+            train_nid = np.arange(len(idx_selected))
             # train_nid = np.arange(len(train_nid))
             labels_train = labels[idx_selected].to(device)
 
@@ -727,7 +705,6 @@ def main(args):
                                     jaccard_score_buffer_sum[key_A][key] += sum_tmp
                         jaccard_score_buffer_sum[key_A][key] = jaccard_score_buffer_sum[key_A][key]/(len(key_B) - 1)
             ### jaccord score ###
-            # #     x = 1
             #     torch.save(jaccard_score_buffer_sum, f'/home/public/lyx/FreeHGC/hgb/tuning_graph/{args.dataset}/jaccard_score_{args.num_hops}.pt')
                 jaccard_score_buffer_sum = torch.load(f'/home/public/lyx/FreeHGC/hgb/tuning_graph/{args.dataset}/de-normalized/jaccard_score_{args.num_hops}.pt')
 
@@ -805,9 +782,9 @@ def main(args):
                         print(key_B,": ", key)
                         idx=np.arange(adj_dict[key].size(0)+adj_dict[key].size(1))
                         ppr[key_A][key] = topk_ppr_matrix(adj_dict[key], alpha=args.alpha , eps=1e-4 , idx=idx, topk=0, normalization='sym')
-                        # ppr[key_A][key]= calc_ppr(adj_dict[key], key, device)  #[score_train_idx]待验证
-                        ppr_sum[key_A] += ppr[key_A][key][idx_selected] ##不同metapath直接相加，这里可以考虑优化
-                    ppr_sum[key_A] = ppr_sum[key_A].sum(axis = 0)  ###暂时注释是为了保存tuning结果
+                        # ppr[key_A][key]= calc_ppr(adj_dict[key], key, device)
+                        ppr_sum[key_A] += ppr[key_A][key][idx_selected]
+                    ppr_sum[key_A] = ppr_sum[key_A].sum(axis = 0)
                 torch.save(ppr_sum, f'/home/public/lyx/FreeHGC/hgb/tuning_graph/{args.dataset}/de-normalized/ppr_sum_alpha_{args.alpha}.pt')
                 ppr_sum = torch.load(f'/home/public/lyx/FreeHGC/hgb/tuning_graph/{args.dataset}/de-normalized/ppr_sum_alpha_{args.alpha}.pt')
             
@@ -1054,7 +1031,7 @@ if __name__ == "__main__":
     parser.add_argument("--transformer", action='store_true', default=False)
     parser.add_argument('--method', type=str, default='FreeHGC', choices=['kcenter', 'herding', 'herding_class','random', 'FreeHGC'])
     parser.add_argument("--reduction-rate", type=float, default=0.1)
-    parser.add_argument("--pr", type=float, default=0.95)  ###ACM 0.85, DBLP 0.95?
+    parser.add_argument("--pr", type=float, default=0.95)  ###ACM 0.85, DBLP 0.95
     parser.add_argument("--alpha", type=float, default=0.15)
     ####SeHGNN####
     parser.add_argument("--label-drop", type=float, default=0., help="label feature dropout of model")
