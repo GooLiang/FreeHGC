@@ -28,8 +28,7 @@ def get_max_nnd_node_dense(idx_used,high_score_nodes,adj, jaccard_score, weighte
     # t = perf_counter()
     for node in high_score_nodes:  ###S集合
         receptive_field=get_receptive_fields_dense(cur_neighbors,int(node), adj, weighted_score_B) ##eq10
-        total_score = 0.01 * receptive_field/adj.size(1) + (1-jaccard_score[node])  #distance_score/adj.size(0)   ##距离远离，可以考虑乘以系数
-        ## receptive_field: 0.1 0.001
+        total_score = 0.01 * receptive_field/adj.size(1) + (1-jaccard_score[node])  #distance_score/adj.size(0)
         if total_score > max_total_score:
             max_total_score = total_score
             max_receptive_node = node
