@@ -81,7 +81,6 @@ def main(args):
         # g = hg_propagate(g, tgt_type, args.num_hops, max_hops, extra_metapath, echo=False)
         start = time.time()
         features_list_dict, adj_dict, extra_features_buffer = hg_propagate_sparse_pyg_A(adjs, features_list_dict_cp, tgt_type, args.num_hops, max_length, extra_metapath, prop_device, prop_feats=True, echo=True)
-        ##PFP可以用另一种方法得到，dgl只有对角线的特征为1
         end = time.time()
         print("time for feature propagation", end - start)
     
@@ -105,9 +104,8 @@ def main(args):
             idx=np.arange(adj_dict[key].size(0)+adj_dict[key].size(1))
             flag = key[0] == key[-1]
             ppr[key_A][key] = topk_ppr_matrix(adj_dict[key], flag, alpha=args.alpha , eps=1e-4 , idx=idx, topk=0, normalization='sym')
-            ppr_sum[key_A] += ppr[key_A][key] ##V1: 不同metapath直接相加，这里可以考虑优化
-            # ppr_sum[key_A] += ppr[key_A][key] ##V2(6.5): 直接这么做acc很差
-            # ppr[key_A][key] = None
+            ppr_sum[key_A] += ppr[key_A][key]
+            
         ppr_sum[key_A] = ppr_sum[key_A].sum(axis = 0)
         torch.save(ppr_sum[key_A], f'/home/public/lyx/FreeHGC/ogbn/tuning_graph/hop_{args.num_hops}/{args.dataset}_tgt_ppr_alpha_{args.alpha}.pt')                                
         ppr_sum[tgt_type] = torch.load(f'/home/public/lyx/FreeHGC/ogbn/tuning_graph/hop_{args.num_hops}/{args.dataset}_tgt_ppr_alpha_{args.alpha}.pt')                                
@@ -138,13 +136,12 @@ def main(args):
         candidate = {}
         candidate[tgt_type] = idx_selected
         
-        # key_counter = {}
-        # for key in adj_dict.keys():
-        #     # if key[-1] != tgt_type:
-        #     key_counter.setdefault(key[-1], []).append(key)
-            
+        key_counter = {}
+        for key in adj_dict.keys():
+            # if key[-1] != tgt_type:
+            key_counter.setdefault(key[-1], []).append(key)
 
-        
+        # ## PPR: condense other node types ###
         ppr = {}
         ppr_sum = {}
         for key_A, key_B in key_counter.items():
@@ -155,16 +152,12 @@ def main(args):
                     print(key_B,": ", key)
                     idx=np.arange(adj_dict[key].size(0)+adj_dict[key].size(1))
                     ppr[key_A][key] = topk_ppr_matrix(adj_dict[key], False, alpha=args.alpha , eps=1e-4 , idx=idx, topk=0, normalization='sym')
-                    # ppr[key_A][key]= calc_ppr(adj_dict[key], key, device)  #[score_train_idx]待验证
-                    ppr_sum[key_A] += ppr[key_A][key][idx_selected] ##不同metapath直接相加，这里可以考虑优化
-                    # ppr[key_A][key] = None
+                    ppr_sum[key_A] += ppr[key_A][key][idx_selected]
                 ppr_sum[key_A] = ppr_sum[key_A].sum(axis = 0)
-                # ppr_sum[key_A] = torch.sum(ppr_sum[key_A], dim = 0)
+
         torch.save(ppr_sum, f'/home/public/lyx/FreeHGC/ogbn/tuning_graph/hop_{args.num_hops}/{args.dataset}_cond_{args.reduction_rate}_ppr_sum_alpha_{args.alpha}.pt')                                
         ppr_sum = torch.load(f'/home/public/lyx/FreeHGC/ogbn/tuning_graph/hop_{args.num_hops}/{args.dataset}_cond_{args.reduction_rate}_ppr_sum_alpha_{args.alpha}.pt')
         # ## PPR: condense other node types ###
-        
-        
 
         for key, value in ppr_sum.items():
             reduce_nodes = int(real_reduction_rate * node_type_nodes[key])  #args.reduction_rate
@@ -174,23 +167,6 @@ def main(args):
                 _, candidate[key] = torch.topk(torch.tensor(np.asarray(ppr_sum[key]).squeeze()), k = reduce_nodes)
             torch.save(candidate[key].numpy(), f'/home/public/lyx/FreeHGC/ogbn/condense_graph/hop_{args.num_hops}/{args.dataset}/hops_{args.num_hops}_rrate_{args.reduction_rate}_alpha_{args.alpha}_type_{key}.pt')             
         
-        
-        # ### 新合成方法 ###
-        # if args.dataset == 'ogbn-mag':
-        #     new_adjs = {}
-        #     for key, value in adjs.items():
-        #         if key[0] == tgt_type and key[1] == tgt_type:
-        #             new_adjs[key] = adjs[key][candidate[key[0]], candidate[key[1]]] #PP
-        #         elif key == 'PA' or key == 'AP':
-        #             new_adjs[key] = adjs[key][candidate[key[0]]][:, candidate[key[1]]]
-        #         elif key == 'AI' or key == 'PF':
-        #             new_adjs[key] = adjs[key][candidate[key[0]], :]
-        #         elif key == 'IA'or key == 'FP':
-        #             new_adjs[key] = adjs[key][:, candidate[key[1]]]
-                    
-        #     for key, value in features_list_dict_cp.items():
-        #         if  key == 'P' or key == 'A':
-        #             features_list_dict_cp[key] = features_list_dict_cp[key][candidate[key]]
         if args.dataset == 'aminer':
             new_adjs = {}
             for key, value in adjs.items():
@@ -204,103 +180,56 @@ def main(args):
             for key, value in features_list_dict_cp.items():
                 if key == 'A':
                     features_list_dict_cp[key] = features_list_dict_cp[key][candidate[key]]
-        ### 新合成方法 ###
-              
-        # ### TIGHT VERSION ###
-        # from sklearn.cluster import BisectingKMeans
-        # from torch_scatter import scatter_mean, scatter_sum
-                
-        # cluster_dict = {}
-        # for key in ['I', 'F']:
-        #     k_means = BisectingKMeans(n_clusters=int(g.num_nodes(key) * real_reduction_rate), random_state=0)
-        #     h = features_list_dict_cp[key]
-        #     k_means.fit(h)
-        #     cluster_dict[key] = torch.LongTensor(k_means.predict(h)) ###识别每个顶点的cluster
-        #     torch.save(cluster_dict[key].numpy(), f'/home/public/lyx/FreeHGC/ogbn/condense_graph/{args.dataset}/cluster_type_{key}.pt')             
-        #     x_initial_dict = scatter_mean(h.cpu(), cluster_dict[key], dim=0)
-        #     torch.save(x_initial_dict.numpy(), f'/home/public/lyx/FreeHGC/ogbn/condense_graph/{args.dataset}/cluster_features_type_{key}.pt')             
-
-        # cluster_dict = {}
-        # for key in ['I', 'F']:
-        #     cluster_dict[key] = torch.load(f'/home/public/lyx/FreeHGC/ogbn/condense_graph/{args.dataset}/cluster_type_{key}.pt')
-        #     k = torch.load(f'/home/public/lyx/FreeHGC/ogbn/condense_graph/{args.dataset}/cluster_features_type_{key}.pt')             
-        #     features_list_dict_cp[key] = torch.tensor(k)
-            
-        # cluster_adi_dict = {}
-        # for key, adj_t in new_adjs.items():
-        #     if key == 'PF' or key == 'AI':
-        #         src_num = new_adjs[key].size(0)
-        #         dst_num = cluster_dict[key[1]].max()+1
-        #         cluster_adi_dict[key[::-1]] = torch.zeros(dst_num, src_num) ### our:这里应该反过来
-        #         row = adj_t.storage._row
-        #         col = adj_t.storage._col
-        #         c_src = row
-        #         c_dst = cluster_dict[key[1]]
-        #         c_dst_row = c_dst[col]
-        #         c_src_col = c_src ###每个索引对应的cluster号
-        #         for i in range(dst_num):
-        #             mask_i = c_dst_row==i ###cluster=i的dst索引
-        #             connected = c_src_col[mask_i] ### 这个cluster所连接的顶点
-        #             # connected = connected[connected>-1]
-        #             ### 这里应该求FP
-        #             cluster_adi_dict[key[::-1]][i][connected] = 1 ###按列相加  ### our: 这里是新生成的adj
-            
-        #         row, col = cluster_adi_dict[key[::-1]].to_sparse().indices()
-        #         sparse_sizes = cluster_adi_dict[key[::-1]].to_sparse().size()
-        #         new_adjs[key[::-1]] = SparseTensor(row=torch.LongTensor(row), col=torch.LongTensor(col), sparse_sizes=sparse_sizes)
-        #         new_adjs[key] = new_adjs[key[::-1]].t()
-        # ### TIGHT VERSION ###
-        
         
         ### LOOSE VERSION ###
-        def relation_condition(key):
-            if args.dataset == 'ogbn-mag':
-                key_A = ['PF', 'AI']   ### PA用2，PF,AI用3
-            if args.dataset == 'aminer':
-                key_A = ['PF', 'AI']   ### PA用2，AV用3
-            if key in  key_A:
-                return True
-            else:
-                return False
+        # def relation_condition(key):
+        #     if args.dataset == 'ogbn-mag':
+        #         key_A = ['PF', 'AI']   ### PA用2，PF,AI用3
+        #     if args.dataset == 'aminer':
+        #         key_A = ['PF', 'AI']   ### PA用2，AV用3
+        #     if key in  key_A:
+        #         return True
+        #     else:
+        #         return False
             
-        new_index = {}
-        edge_count = {}
-        features_new = {}
-        for key_A, val in new_adjs.items():
-            if relation_condition(key_A):
-                a_list = val.storage._row.tolist()
-                b_list = val.storage._col.tolist()
-                # Construct the dictionary
-                result_dict = {}
-                for key, value in zip(a_list, b_list):
-                    result_dict.setdefault(key, []).append(value)
-                    # if key in result_dict:
-                    #     result_dict[key].append(value)
-                    # else:
-                    #     result_dict[key] = [value]
+        # new_index = {}
+        # edge_count = {}
+        # features_new = {}
+        # for key_A, val in new_adjs.items():
+        #     if relation_condition(key_A):
+        #         a_list = val.storage._row.tolist()
+        #         b_list = val.storage._col.tolist()
+        #         # Construct the dictionary
+        #         result_dict = {}
+        #         for key, value in zip(a_list, b_list):
+        #             result_dict.setdefault(key, []).append(value)
+        #             # if key in result_dict:
+        #             #     result_dict[key].append(value)
+        #             # else:
+        #             #     result_dict[key] = [value]
                     
-                pool = []
-                new_index[key_A[1]] = {}
-                edge_count[key_A[1]] = {}
-                i = 0
-                features_new[key_A[1]] = []
-                for key, value in result_dict.items():
-                    if value in pool:
-                        a = list(new_index[key_A[1]].keys())[pool.index(value)]
-                        new_index[key_A[1]][key] = new_index[key_A[1]][a]
-                        pool.append(value)
-                    else:
-                        new_index[key_A[1]][key] = i
-                        edge_count[key_A[1]][i] = len(value)
-                        features_new[key_A[1]].append(torch.sum(features_list_dict_cp[key_A[1]][value], dim = 0)/len(value))   ### /长度是V1版本
-                        i = i + 1
-                        pool.append(value)
-                row = list(new_index[key_A[1]].keys())
-                col = list(new_index[key_A[1]].values())
-                new_adjs[key_A] = SparseTensor(row=torch.LongTensor(row), col=torch.LongTensor(col), sparse_sizes=(max(row)+1, i))
-                new_adjs[key_A[::-1]] = SparseTensor(row=torch.LongTensor(col), col=torch.LongTensor(row), sparse_sizes=(i, max(row)+1))
-                # new_adjs[key_A].storage.row = torch.tensor(list(edge_count[key_A[1]].values()))
-                features_list_dict_cp[key_A[1]] = torch.stack(features_new[key_A[1]])
+        #         pool = []
+        #         new_index[key_A[1]] = {}
+        #         edge_count[key_A[1]] = {}
+        #         i = 0
+        #         features_new[key_A[1]] = []
+        #         for key, value in result_dict.items():
+        #             if value in pool:
+        #                 a = list(new_index[key_A[1]].keys())[pool.index(value)]
+        #                 new_index[key_A[1]][key] = new_index[key_A[1]][a]
+        #                 pool.append(value)
+        #             else:
+        #                 new_index[key_A[1]][key] = i
+        #                 edge_count[key_A[1]][i] = len(value)
+        #                 features_new[key_A[1]].append(torch.sum(features_list_dict_cp[key_A[1]][value], dim = 0)/len(value))   ### /长度是V1版本
+        #                 i = i + 1
+        #                 pool.append(value)
+        #         row = list(new_index[key_A[1]].keys())
+        #         col = list(new_index[key_A[1]].values())
+        #         new_adjs[key_A] = SparseTensor(row=torch.LongTensor(row), col=torch.LongTensor(col), sparse_sizes=(max(row)+1, i))
+        #         new_adjs[key_A[::-1]] = SparseTensor(row=torch.LongTensor(col), col=torch.LongTensor(row), sparse_sizes=(i, max(row)+1))
+        #         # new_adjs[key_A].storage.row = torch.tensor(list(edge_count[key_A[1]].values()))
+        #         features_list_dict_cp[key_A[1]] = torch.stack(features_new[key_A[1]])
         
         # torch.save(new_adjs, f'/home/public/lyx/FreeHGC/ogbn/condense_graph/{args.dataset}/hops_{args.num_hops}_rrate_{args.reduction_rate}_new_adjs.pt')
         # torch.save(features_list_dict_cp, f'/home/public/lyx/FreeHGC/ogbn/condense_graph/{args.dataset}/hops_{args.num_hops}_rrate_{args.reduction_rate}_new_features.pt')
@@ -310,13 +239,13 @@ def main(args):
 
         # sum_node = new_adjs['PF'].size(0) + new_adjs['PF'].size(1) +new_adjs['AI'].size(0) + new_adjs['AI'].size(1)
 
-        # ### origin ###
-        # new_adjs = {}
-        # for key, value in adjs.items():
-        #     new_adjs[key] = adjs[key][candidate[key[0]]][:, candidate[key[1]]]
-        # for key, value in features_list_dict_cp.items():
-        #     features_list_dict_cp[key] = features_list_dict_cp[key][candidate[key]]
-        # ### origin ###
+        ### origin ###
+        new_adjs = {}
+        for key, value in adjs.items():
+            new_adjs[key] = adjs[key][candidate[key[0]]][:, candidate[key[1]]]
+        for key, value in features_list_dict_cp.items():
+            features_list_dict_cp[key] = features_list_dict_cp[key][candidate[key]]
+        ### origin ###
             
 
         # ### only target ###
