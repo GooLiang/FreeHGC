@@ -70,7 +70,7 @@ def main(args):
         tgt_type = 'P'
         extra_metapath = []
         max_length = args.num_hops + 1
-        prop_device = 'cuda:{}'.format(args.gpu)  ###对于dblp需要用gpu,IMDB一样可以用
+        prop_device = 'cuda:{}'.format(args.gpu)
 
 
         print(f'Current num hops = {args.num_hops}')
@@ -83,7 +83,6 @@ def main(args):
             # g = hg_propagate(g, tgt_type, args.num_hops, max_hops, extra_metapath, echo=False)
             start = time.time()
             features_list_dict, adj_dict, extra_features_buffer = hg_propagate_sparse_pyg_A(adjs, features_list_dict_cp, tgt_type, args.num_hops, max_length, extra_metapath, prop_device, prop_feats=True, echo=True)
-            ##PFP可以用另一种方法得到，dgl只有对角线的特征为1
             end = time.time()
             print("time for feature propagation", end - start)
         
@@ -237,8 +236,8 @@ def main(args):
                         print(key_B,": ", key)
                         idx=np.arange(adj_dict[key].size(0)+adj_dict[key].size(1))
                         ppr[key_A][key] = topk_ppr_matrix(adj_dict[key], alpha=args.alpha , eps=1e-4 , idx=idx, topk=0, normalization='sym')
-                        # ppr[key_A][key]= calc_ppr(adj_dict[key], key, device)  #[score_train_idx]待验证
-                        ppr_sum[key_A] += ppr[key_A][key][idx_selected] ##不同metapath直接相加，这里可以考虑优化
+                        # ppr[key_A][key]= calc_ppr(adj_dict[key], key, device)
+                        ppr_sum[key_A] += ppr[key_A][key][idx_selected]
                         # ppr[key_A][key] = None
                     ppr_sum[key_A] = ppr_sum[key_A].sum(axis = 0)
                     # ppr_sum[key_A] = torch.sum(ppr_sum[key_A], dim = 0)
