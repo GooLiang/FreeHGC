@@ -72,19 +72,19 @@ def main(args):
     with torch.no_grad():
         #############normalization---wait to modify#########################
         if args.dataset != "Freebase":
-            prop_device = 'cuda:{}'.format(args.gpu)  ###对于dblp需要用gpu,IMDB一样可以用
+            prop_device = 'cuda:{}'.format(args.gpu)
             ###core-set###
             if args.method == 'kcenter':
                 agent = KCenter(labels, train_nid, args, device)
                 start = time.time() 
-                for tgt_node_key in node_type_nodes:  ###求所有节点类型的特征
+                for tgt_node_key in node_type_nodes:
                     features_list_dict_type[tgt_node_key], adj_dict, extra_features_buffer = hg_propagate_sparse_pyg_A(adjs, features_list_dict_cp, tgt_node_key, args.num_hops, max_length, extra_metapath, threshold_metalen, prop_device, args.enhance, prop_feats=True, echo=True) 
                 end = time.time()
                 print("time for feature propagation", end - start) 
             if args.method == 'herding':
                 agent = Herding(labels, train_nid, args, device)
                 start = time.time()
-                for tgt_node_key in node_type_nodes:  ###求所有节点类型的特征
+                for tgt_node_key in node_type_nodes:
                     features_list_dict_type[tgt_node_key], adj_dict, extra_features_buffer = hg_propagate_sparse_pyg_A(adjs, features_list_dict_cp, tgt_node_key, args.num_hops, max_length, extra_metapath, threshold_metalen, prop_device, args.enhance, prop_feats=True, echo=True)    
                 end = time.time()
                 print("time for feature propagation", end - start)          
@@ -203,10 +203,9 @@ def main(args):
                 ppr_sum[key_A] = 0
                 candidate = {}
                 for key in key_counter[tgt_type]:
-                    ppr[key_A][key]= calc_ppr(adj_dict[key], key, args.pr, device)  #[score_train_idx]待验证
-                    ppr_sum[key_A] += ppr[key_A][key] ##V1: 不同metapath直接相加，这里可以考虑优化
-                    # ppr_sum[key_A] += ppr[key_A][key] ##V2(6.5): 直接这么做acc很差
-                    # ppr[key_A][key] = None
+                    ppr[key_A][key]= calc_ppr(adj_dict[key], key, args.pr, device)
+                    ppr_sum[key_A] += ppr[key_A][key]
+                    
                 ppr_sum[key_A] = torch.sum(ppr_sum[key_A], dim = 0)
                 
                 ### 不考虑class
@@ -238,8 +237,7 @@ def main(args):
                 #     for key in key_B:
                 #         ppr[key_A][key]= calc_ppr(adj_dict[key], key, args.pr, device)  #[score_train_idx]待验证
                 #         ppr_sum[key_A] += ppr[key_A][key][idx_selected] ##V1: 不同metapath直接相加，这里可以考虑优化
-                #         # ppr_sum[key_A] += ppr[key_A][key] ##V2(6.5): 直接这么做acc很差
-                #         # ppr[key_A][key] = None
+
                 #     ppr_sum[key_A] = torch.sum(ppr_sum[key_A], dim = 0)
                 # # torch.save(ppr_sum, f'/home/public/lyx/FreeHGC/hgb/tuning_graph/{args.dataset}/ppr_sum_{args.num_hops}_{args.reduction_rate}_pr_{args.pr}.pt')
                 # # ppr_sum = torch.load(f'/home/public/lyx/FreeHGC/hgb/tuning_graph/{args.dataset}/ppr_sum_{args.num_hops}_{args.reduction_rate}_pr_{args.pr}.pt')
@@ -402,22 +400,19 @@ def main(args):
             data_size = {k: v.size(-1) for k, v in feats.items()}
             data_size_extra = {k: v.size(-1) for k, v in feats_extra.items()}
 
-
-
-
         elif args.dataset == "Freebase":
             prop_device = 'cuda:{}'.format(args.gpu)
             if args.method == 'kcenter':
                 agent = KCenter(labels, train_nid, args, device)
                 start = time.time()
-                for tgt_node_key in node_type_nodes:  ###求所有节点类型的特征
+                for tgt_node_key in node_type_nodes:
                     features_list_dict_type[tgt_node_key], extra_features_buffer = hg_propagate_sparse_pyg_freebase(adjs, tgt_node_key, args.num_hops, max_length, extra_metapath, prop_device, args.enhance, prop_feats=True, echo=True)
                 end = time.time()
                 print("time for feature propagation", end - start) 
             if args.method == 'herding':
                 agent = Herding(labels, train_nid, args, device)
                 start = time.time()
-                for tgt_node_key in node_type_nodes:  ###求所有节点类型的特征
+                for tgt_node_key in node_type_nodes:
                     features_list_dict_type[tgt_node_key], extra_features_buffer = hg_propagate_sparse_pyg_freebase(adjs, tgt_node_key, args.num_hops, max_length, extra_metapath, prop_device, args.enhance, prop_feats=True, echo=True)
                 # torch.save(features_list_dict_type, f'/home/public/lyx/FreeHGC/hgb/condense_graph/herding/{args.dataset}/hops_{args.num_hops}_aggregate.pt')
                 # features_list_dict_type = torch.load(f'/home/public/lyx/FreeHGC/hgb/condense_graph/herding/{args.dataset}/hops_{args.num_hops}_aggregate.pt')
@@ -471,7 +466,6 @@ def main(args):
                     torch.save(idx_selected, f'/home/public/lyx/FreeHGC/hgb/condense_graph/kcenter/{args.dataset}/hops_{args.num_hops}_rrate_{args.reduction_rate}_type_{tgt_type}.pt')            
                 print("{}: rate {}: real_reduction_rate {}".format(args.dataset, args.reduction_rate, real_reduction_rate))
                 ### topk for target node types###
-
 
                 # ### topk for other node types ###
                 # real_reduction_rate = sum(agent.num_class_dict.values())/node_type_nodes[tgt_type]
@@ -553,9 +547,7 @@ def main(args):
                     idx=np.arange(adj_dict[key].size(0))
                     flag = key[0] == key[-1]
                     ppr[key_A][key] = topk_ppr_matrix(adj_dict[key], flag, alpha=args.alpha , eps=1e-4 , idx=idx, topk=0, normalization='sym')
-                    ppr_sum[key_A] += ppr[key_A][key] ##V1: 不同metapath直接相加，这里可以考虑优化
-                    # ppr_sum[key_A] += ppr[key_A][key] ##V2(6.5): 直接这么做acc很差
-                    # ppr[key_A][key] = None
+                    ppr_sum[key_A] += ppr[key_A][key]
                 ppr_sum[key_A] = ppr_sum[key_A].sum(axis = 0)
                 ### ppr condense target type ###
 
@@ -594,9 +586,8 @@ def main(args):
                         # idx=np.arange(adj_dict[key].size(0)+adj_dict[key].size(1))
                         idx=np.arange(adj_dict[key].size(0))
                         ppr[key_A][key] = topk_ppr_matrix(adj_dict[key], False, alpha=args.alpha , eps=1e-4 , idx=idx, topk=0, normalization='sym')
-                        # ppr[key_A][key]= calc_ppr(adj_dict[key], key, device)  #[score_train_idx]待验证
-                        ppr_sum[key_A] += ppr[key_A][key][idx_selected] ##不同metapath直接相加，这里可以考虑优化
-                    ppr_sum[key_A] = ppr_sum[key_A].sum(axis = 0)  ###暂时注释是为了保存tuning结果
+                        ppr_sum[key_A] += ppr[key_A][key][idx_selected]
+                    ppr_sum[key_A] = ppr_sum[key_A].sum(axis = 0)
                 torch.save(ppr_sum, f'/home/public/lyx/FreeHGC/hgb/tuning_graph/{args.dataset}/de-normalized/ppr_sum_alpha_{args.alpha}.pt')
                 ppr_sum = torch.load(f'/home/public/lyx/FreeHGC/hgb/tuning_graph/{args.dataset}/de-normalized/ppr_sum_alpha_{args.alpha}.pt')
             
@@ -841,7 +832,7 @@ if __name__ == "__main__":
     parser.add_argument("--transformer", action='store_true', default=False)
     parser.add_argument('--method', type=str, default='FreeHGC', choices=['kcenter', 'herding', 'herding_class','random', 'FreeHGC'])
     parser.add_argument("--reduction-rate", type=float, default=0.1)
-    parser.add_argument("--pr", type=float, default=0.2)  ###ACM 0.85, DBLP 0.95?
+    parser.add_argument("--pr", type=float, default=0.2)  ###ACM 0.85, DBLP 0.95
     parser.add_argument("--alpha", type=float, default=0.7)
     ####SeHGNN####
     parser.add_argument("--label-drop", type=float, default=0., help="label feature dropout of model")
